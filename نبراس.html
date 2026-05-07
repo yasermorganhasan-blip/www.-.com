@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>منصة النبراس - النسخة الاحترافية</title>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    <style>
+        :root { --bg: #000; --red: #8b0000; --white: #fff; }
+        body { margin: 0; font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--white); text-align: right; overflow-x: hidden; }
+        
+        /* تحسين عرض الشاشات */
+        .screen { display: none; padding: 20px; min-height: 100vh; box-sizing: border-box; }
+        .active { display: block !important; }
+        .flex-center { display: flex; flex-direction: column; justify-content: center; align-items: center; }
+
+        .card { background: #111; padding: 20px; border-radius: 10px; border-right: 5px solid var(--red); margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        .btn { padding: 12px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; margin: 10px 0; transition: 0.3s; }
+        .btn-main { background: var(--red); color: white; }
+        .btn-main:hover { background: #a50000; }
+        .btn-sub { background: white; color: black; }
+        .btn-sub:hover { background: #ddd; }
+        
+        input, select { width: 100%; padding: 12px; margin: 10px 0; background: #222; color: white; border: 1px solid #444; border-radius: 5px; box-sizing: border-box; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #333; padding: 10px; text-align: center; }
+        th { background: var(--red); }
+        
+        .option-btn { display: block; width: 100%; text-align: right; padding: 12px; margin: 5px 0; background: #222; border: 1px solid #444; color: white; cursor: pointer; border-radius: 5px; }
+        .selected { background: var(--red) !important; border-color: white; }
+        
+        .footer-dev { font-size: 13px; margin-top: 15px; color: #aaa; }
+    </style>
+</head>
+<body>
+
+<div id="home-screen" class="screen active flex-center" style="background: linear-gradient(135deg, #000 50%, #8b0000 50%);">
+    <div style="background:rgba(0,0,0,0.9); padding:40px; border-radius:20px; border:2px solid #8b0000; width:300px; text-align:center;">
+        <h2>منصة النبراس</h2>
+        <button class="btn btn-sub" onclick="showScreen('student-login')">دخول الطالب</button>
+        <button class="btn btn-main" onclick="adminAuth()">دخول المستر</button>
+        <p class="footer-dev">المطور: عمار ياسر - 01281872620</p>
+    </div>
+</div>
+
+<div id="student-login" class="screen flex-center">
+    <div class="card" style="width: 300px;">
+        <h3>تسجيل دخول بطل النبراس</h3>
+        <input type="tel" id="loginPhone" placeholder="أدخل رقم الموبايل المسجل">
+        <button class="btn btn-main" onclick="handleStudentLogin()">دخول</button>
+        <button class="btn btn-sub" onclick="showScreen('home-screen')">رجوع</button>
+        <p class="footer-dev" style="text-align: center;">المطور: عمار ياسر - 01281872620</p>
+    </div>
+</div>
+
+<div id="student-dash" class="screen">
+    <div class="card">
+        <h2 id="stName">مرحباً بك</h2>
+        <button class="btn btn-main" id="startExamBtn" onclick="loadExam()">بدء الامتحان المتاح</button>
+        <button class="btn btn-sub" onclick="location.reload()">خروج</button>
+    </div>
+    <div id="exam-area" style="display:none" class="card">
+        <h3 id="exTitle">الأسئلة</h3>
+        <div id="questions-box"></div>
+        <button class="btn btn-main" onclick="submitExam()">إرسال الإجابات</button>
+    </div>
+</div>
+
+<div id="admin-dash" class="screen">
+    <h2>لوحة تحكم مستر أشرف فكري</h2>
+    
+    <div class="card">
+        <h3>إضافة سؤال جديد</h3>
+        <input type="text" id="qText" placeholder="نص السؤال">
+        <input type="text" id="opt0" placeholder="الاختيار الأول (الصحيح)">
+        <input type="text" id="opt1" placeholder="الاختيار الثاني">
+        <input type="text" id="opt2" placeholder="الاختيار الثالث">
+        <button class="btn btn-main" onclick="addQuestion()">حفظ السؤال في المنصة</button>
+    </div>
+
+    <div class="card">
+        <h3>نتائج الطلاب</h3>
+        <div style="overflow-x: auto;">
+            <table>
+                <thead><tr><th>الطالب</th><th>الدرجة</th><th>التاريخ</th></tr></thead>
+                <tbody id="resultsTable"></tbody>
+            </table>
+        </div>
+    </div>
+    <button class="btn btn-sub" onclick="location.reload()">خروج</button>
+</div>
+
+<script>
+    // --- إعدادات Firebase ---
+    const firebaseConfig = {
+      apiKey: "AIzaSyDDUR6IdJ-eQW72CN0pB0B6sqxBxZkefKg",
+      authDomain: "al-nibras-in-the-arabic.firebaseapp.com",
+      projectId: "al-nibras-in-the-arabic",
+      storageBucket: "al-nibras-in-the-arabic.firebasestorage.app",
+      messagingSenderId: "45491370927",
+      appId: "1:45491370927:web:55dfc130d71b2257e1cd5a"
+    };
+    
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    let currentStudent = null;
+    let questions = [];
+    let answers = {};
+
+    function showScreen(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        const target = document.getElementById(id);
+        if (target) {
+            target.classList.add('active');
+            // تأكد من ظهور شاشات تسجيل الدخول بشكل منتصف
+            if (id === 'home-screen' || id === 'student-login') {
+                target.classList.add('flex-center');
+            }
+        }
+    }
+
+    // --- منطق الطالب ---
+    async function handleStudentLogin() {
+        const phone = document.getElementById('loginPhone').value.trim();
+        if(!phone) return alert("يرجى إدخال الرقم");
+
+        try {
+            const res = await db.collection("student_requests")
+                          .where("studentPhone", "==", phone)
+                          .where("status", "==", "active")
+                          .get();
+            
+            if(!res.empty) {
+                currentStudent = { id: res.docs[0].id, ...res.docs[0].data() };
+                document.getElementById('stName').innerText = "البطل: " + currentStudent.name;
+                showScreen('student-dash');
+            } else { 
+                alert("الرقم غير مسجل أو بانتظار تفعيل المستر"); 
+            }
+        } catch (error) {
+            console.error(error);
+            alert("حدث خطأ في الاتصال بالقاعدة");
+        }
+    }
+
+    async function loadExam() {
+        try {
+            const res = await db.collection("questions").get();
+            questions = res.docs.map(doc => ({id: doc.id, ...doc.data()}));
+            
+            if(questions.length == 0) return alert("لا توجد أسئلة مضافة حالياً");
+            
+            document.getElementById('exam-area').style.display = 'block';
+            document.getElementById('startExamBtn').style.display = 'none';
+            const box = document.getElementById('questions-box');
+            box.innerHTML = "";
+            
+            questions.forEach((q, i) => {
+                let optsHtml = "";
+                q.options.forEach((opt, oi) => {
+                    optsHtml += `<button class="option-btn q-${i}" onclick="selectOpt(${i}, '${opt.replace(/'/g, "\\'")}', this)">${opt}</button>`;
+                });
+                box.innerHTML += `<div class="card"><p><b>س ${i+1}:</b> ${q.text}</p>${optsHtml}</div>`;
+            });
+        } catch (error) {
+            alert("خطأ في تحميل الامتحان");
+        }
+    }
+
+    function selectOpt(qi, optValue, btn) {
+        answers[qi] = optValue;
+        document.querySelectorAll('.q-'+qi).forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+    }
+
+    async function submitExam() {
+        if(Object.keys(answers).length < questions.length) {
+            if(!confirm("لم تقم بحل جميع الأسئلة، هل تريد الإرسال؟")) return;
+        }
+
+        let score = 0;
+        questions.forEach((q, i) => {
+            if(answers[i] === q.correct) score++;
+        });
+
+        const total = Math.round((score / questions.length) * 100);
+        
+        try {
+            await db.collection("results").add({
+                name: currentStudent.name,
+                phone: currentStudent.studentPhone,
+                grade: total + "%",
+                date: new Date().toLocaleString('ar-EG')
+            });
+            alert("عاش يا بطل! تم إرسال إجاباتك بنجاح. درجتك: " + total + "%");
+            location.reload();
+        } catch (error) {
+            alert("حدث خطأ أثناء حفظ النتيجة");
+        }
+    }
+
+    // --- منطق المستر ---
+    function adminAuth() {
+        const pass = prompt("كلمة سر المستر:");
+        if(pass === "أشرف فكري") { 
+            showScreen('admin-dash');
+            loadResults();
+        } else if (pass !== null) {
+            alert("كلمة السر خاطئة");
+        }
+    }
+
+    async function addQuestion() {
+        const text = document.getElementById('qText').value;
+        const correct = document.getElementById('opt0').value;
+        const opt1 = document.getElementById('opt1').value;
+        const opt2 = document.getElementById('opt2').value;
+
+        if(!text || !correct || !opt1 || !opt2) return alert("اكمل بيانات السؤال");
+
+        const options = [correct, opt1, opt2];
+        options.sort(() => Math.random() - 0.5);
+        
+        try {
+            await db.collection("questions").add({ text, options, correct });
+            alert("تم حفظ السؤال بنجاح");
+            document.getElementById('qText').value = "";
+            document.getElementById('opt0').value = "";
+            document.getElementById('opt1').value = "";
+            document.getElementById('opt2').value = "";
+        } catch (error) {
+            alert("فشل الحفظ");
+        }
+    }
+
+    async function loadResults() {
+        try {
+            const res = await db.collection("results").orderBy("date", "desc").limit(50).get();
+            const table = document.getElementById('resultsTable');
+            table.innerHTML = "";
+            res.forEach(doc => {
+                const d = doc.data();
+                table.innerHTML += `<tr><td>${d.name}</td><td>${d.grade}</td><td>${d.date}</td></tr>`;
+            });
+        } catch (error) {
+            console.error("خطأ في جلب النتائج:", error);
+        }
+    }
+</script>
+</body>
+</html>
